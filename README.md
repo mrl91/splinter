@@ -18,7 +18,8 @@ Ce projet comprend deux composants principaux : RAT_server et RAT_client, conçu
 
 Prérequis :
 
-Python
+- **Python**
+
 Les dépendances spécifiées dans requirement.txt pour chaque composant.
 Pour installer les dépendances :
 
