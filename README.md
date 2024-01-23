@@ -21,7 +21,7 @@ Prérequis :
 - **Python**
 - **pip**
 
-⚠️ Splinter utilise **secretsdump.py** pour sa fonction hashdump, votre antivirus peut supprimer ce script, il est nécessaire d'autoriser le fichier ou de désactiver votre antivirus lors du clonage du dépôt ⚠️
+⚠️ Splinter utilise **secretsdump.py** pour sa fonction hashdump, votre antivirus peut supprimer ce script, il est nécessaire d'**autoriser le fichier** ou de **désactiver votre antivirus** lors du clonage du dépôt ⚠️
 
 Pour installer les dépendances :
 
