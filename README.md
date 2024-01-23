@@ -23,11 +23,10 @@ Prérequis :
 
 ⚠️ Splinter utilise **secretsdump.py** pour sa fonction hashdump, votre antivirus peut supprimer ce script, il est nécessaire d'autoriser le fichier ou de désactiver votre antivirus lors du clonage du dépôt ⚠️
 
-Les dépendances spécifiées dans requirement.txt pour chaque composant.
 Pour installer les dépendances :
 
 ```python
-pip install -r requirement.txt
+pip install -r requirements.txt
 ```
 
 ## ⚙️ Configuration
