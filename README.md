@@ -21,6 +21,8 @@ Prérequis :
 - **Python**
 - **pip**
 
+⚠️ Splinter utilise **secretsdump.py** pour sa fonction hashdump, votre antivirus peut supprimer ce script, il est nécessaire d'autoriser le fichier ou de désactiver votre antivirus lors du clonage du dépôt ⚠️
+
 Les dépendances spécifiées dans requirement.txt pour chaque composant.
 Pour installer les dépendances :
 
@@ -32,7 +34,7 @@ pip install -r requirement.txt
 Assurez-vous que les configurations de réseau (adresse IP, port, etc.) dans les scripts client et serveur sont correctement définies pour permettre une communication fluide.
 
 Il est recommandé de mettre en place une IP fixe sur les deux machines.
-Le RAT_Server génére automatiquement un certificat qu'il transmet et **installe** sur le RAT_client.
+Le RAT_Server génére automatiquement un certificat qu'il transmet et l'**installe automatiquement** sur le RAT_client.
 
 Enfin il faudras modifier le main.py du RAT_client en fonction de l'IP du serveur, Splinter affiche l'IP du serveur lors du lancement du script : 
 
@@ -46,13 +48,13 @@ Démarrage du **serveur** :
 ```python
 python3 main.py
 ```
-*Le serveur attendra les connexions des clients.*
+*Le serveur attendra la connexion du client*
 
 Démarrage du **client** :
 ```python
 python3 main.py
 ```
-*Le client tentera de se connecter au serveur.*
+*Le client tentera de se connecter au serveur*
 
 ## ✨ Fonctionnalités
 **Commandes distantes** : Exécutez des commandes sur les machines clientes à partir du serveur. Utiliser "**help**" pour voir les commandes disponibles.
