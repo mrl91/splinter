@@ -1,24 +1,25 @@
 import os
-from command_setup import create_server, setup_ssl_certificates
+import threading
+from command_setup import create_server, setup_ssl_certificates, start_non_secure_server
 from logo import banner
-from colorama import Fore, Style, init
+from colorama import init
 
-# Obtention du chemin du répertoire courant où le script est exécuté
-current_dir = os.path.dirname(os.path.realpath(__file__))
-# Chemins absolus pour le certificat et la clé
-cert_path = os.path.join(current_dir, 'server.crt')
-key_path = os.path.join(current_dir, 'server.key')
-config_file = os.path.join(current_dir, 'cert_config.conf')
+private_server_port = 8889
+# Initialisation et démarrage du serveur sécurisé
+def main():
+    print(banner)
+    init(autoreset=True)
+    # Définit les chemins vers les certificats SSL et la configuration nécessaire
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    cert_path = os.path.join(current_dir, 'server.crt')
+    key_path = os.path.join(current_dir, 'server.key')
+    config_file = os.path.join(current_dir, 'cert_config.conf')
 
-# Initialise Colorama
-init(autoreset=True)
-print(banner)
-# Configuration des certificats SSL
-setup_ssl_certificates(cert_path, key_path, config_file)
+    setup_ssl_certificates(cert_path, key_path, config_file)  # Configure les certificats SSL pour le serveur
+    # Crée un thread pour le serveur sécurisé pour ne pas bloquer l'exécution principale
+    server_thread = threading.Thread(target=create_server, args=(private_server_port, cert_path, key_path))
+    server_thread.start()
+    start_non_secure_server() # Démarre le serveur non sécurisé pour la récupération de certificat
 
-# Vérification de l'existence des fichiers de certificat et de clé
-if not os.path.isfile(cert_path) or not os.path.isfile(key_path):
-    print(f"Erreur : Fichier de certificat ou clé manquant. Certificat : {cert_path}, Clé : {key_path}")
-else:
-    # Création et lancement du serveur
-    create_server(8889, cert_path, key_path)
+if __name__ == "__main__":
+    main()

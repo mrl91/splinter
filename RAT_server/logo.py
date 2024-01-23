@@ -1,4 +1,4 @@
-from colorama import Fore, Style, init
+from colorama import Fore, Style
 
 banner = f"""\{Style.RESET_ALL}{Fore.RED}{Style.DIM}
 
@@ -18,7 +18,7 @@ X: `*88888%`     !    888I  888I   888R     888E    8888  888R    8888    8888.+
      ^"****""`        888 ^         "%       ""                              "YP'                 
                       *8E                                                                         
                       '8>                                                                         
-                       "                                           By MrL91 & Tarti - Version 1.0                        
+                       "                                           By MrL91 & Tarti - Version 1.1                        
 {Style.RESET_ALL}{Fore.GREEN}{Style.DIM}                                            SERVEUR{Style.RESET_ALL}{Fore.RED}{Style.DIM}   
                                                                           
 ================================================================================================= 

