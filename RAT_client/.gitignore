@@ -1,0 +1,6 @@
+# Ignorer les fichiers spécifiques
+command.cpython-311.pyc
+server.crt
+
+# Ignorer le répertoire __pycache__
+__pycache__/

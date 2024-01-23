@@ -19,38 +19,37 @@ Ce projet comprend deux composants principaux : RAT_server et RAT_client, conçu
 Prérequis :
 
 - **Python**
+- **pip**
 
 Les dépendances spécifiées dans requirement.txt pour chaque composant.
 Pour installer les dépendances :
 
-```bash
-pip install -r [requirement]
+```python
+pip install -r requirement.txt
 ```
 
 ## ⚙️ Configuration
 Assurez-vous que les configurations de réseau (adresse IP, port, etc.) dans les scripts client et serveur sont correctement définies pour permettre une communication fluide.
 
 Il est recommandé de mettre en place une IP fixe sur les deux machines.
-Le RAT_Server génére automatiquement un certificat qu'il faudras transmettre et **installer** sur le RAT_client.
+Le RAT_Server génére automatiquement un certificat qu'il transmet et **installe** sur le RAT_client.
 
-Utiliser cette documentation pour installer le certificat correctement : [Installation Certificat](https://docs.google.com/document/d/1awD-xdrzHfAnWKk4MfeKgTFUgUMU26PJAxHNG_FEbt0/edit)
+Enfin il faudras modifier le main.py du RAT_client en fonction de l'IP du serveur, Splinter affiche l'IP du serveur lors du lancement du script : 
 
-Enfin il faudras modifier le main.py du RAT_client : 
-
-```bash
-connect_to_server('Server_IP', 8889, 'PATH\\RAT_client\\server.crt')
+```python
+ip_server = 'votre_ip'
 ```
 
 ## 📚 Utilisation
 Démarrage du **serveur** :
 
-```bash
+```python
 python3 main.py
 ```
 *Le serveur attendra les connexions des clients.*
 
 Démarrage du **client** :
-```bash
+```python
 python3 main.py
 ```
 *Le client tentera de se connecter au serveur.*
