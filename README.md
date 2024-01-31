@@ -1,4 +1,3 @@
-
 # 🕵️‍♂️ Splinter
 
 Ce projet comprend deux composants principaux : RAT_server et RAT_client, conçus pour permettre une administration à distance dans un environnement de test de sécurité. Ce projet est destiné à des fins éducatives et de test de pénétration.
@@ -59,3 +58,59 @@ python3 main.py
 **Commandes distantes** : Exécutez des commandes sur les machines clientes à partir du serveur. Utiliser "**help**" pour voir les commandes disponibles.
 
 **Communication sécurisée** : Les scripts sont configurés pour utiliser des connexions sécurisées.
+
+## ☕️ Multi Client
+
+Des test ont été effectué pour que Splinter puissent s'utiliser en multiclient mais les test n'ont pas été concluant.
+Voici le code de test du main.py du RAT_server
+
+```python
+import threading
+import socket
+from command_setup import create_server, setup_ssl_certificates, start_non_secure_server
+from logo import banner
+from colorama import init
+
+# Global dictionary to store client connections
+clients = {}
+
+def multi_client(client_socket, address):
+    # un seul client
+    while True:
+        try:
+            # On récupère les donnée du client et réponse
+            data = client_socket.recv(1024)
+            if not data:
+                break
+        except Exception as e:
+            print(f"Error with client {address}: {e}")
+            break
+
+
+def main():
+    print(banner)
+    init(autoreset=True)
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    cert_path = os.path.join(current_dir, 'server.crt')
+    key_path = os.path.join(current_dir, 'server.key')
+    config_file = os.path.join(current_dir, 'cert_config.conf')
+    # Setup and start the server
+    server_socket = create_server()  
+
+    while True:
+        try:
+            # Accept new client connections
+            client_sock, address = server_socket.accept()
+            print(f"Connection established with {address}")
+
+            # Store client information
+            clients[address] = client_sock
+
+            # Start a new thread for each client
+            client_thread = threading.Thread(target=multi_client, args=(client_sock, address))
+            client_thread.start()
+            start_non_secure_server()
+
+if __name__ == "__main__":
+    main()
+```
